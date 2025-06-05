@@ -21,43 +21,38 @@ class Agent:
     def __init__(self, api_key):
         self.api_key = api_key
         openai.api_key = api_key
-
-    def run(self, prompt):
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=150
-        )
-        return response.choices[0].text.strip()
-
-    def chat(self, messages):
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=messages
-        )
-        return response.choices[0].message['content']
-
-    def load_inventory_database(self, inventory_path: str) -> Dict[str, Any]:
-        """Load inventory database from the specified path."""
+    
+    def get_completion_from_messages(self, messages: list) -> str:
+        """
+        This method takes a list of messages and returns a completion based on those messages.
+        It uses the OpenAI API to generate a response.
+        """
         try:
-            with open(inventory_path, 'r') as f:
-                inventory_data = json.load(f)
-            logger.info(f"Inventory database loaded from {inventory_path}")
-            return inventory_data
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature = 0.0, 
+                max_tokens=1000, 
+            )
+            completion = response.choices[0].message['content']
+            logger.info(f"Completion generated from messages: {completion}")
+            return completion
         except Exception as e:
-            logger.error(f"Error loading inventory database: {e}")
-            return {}
+            logger.error(f"Error generating completion from messages: {e}")
+            return "Error generating completion"
+        
+    def compose_prompt(self, user_message: str) -> List[Dict[str, str]]:
+        """
+        This method takes a user message and composes a complete prompt with roles.
+        It returns a list of message dictionaries, each with a 'role' and 'content'.
+        """
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": user_message}
+        ]
+        return messages
+    
 
-    def load_style_database(self, style_path: str) -> Dict[str, Any]:
-        """Load style database from the specified path."""
-        try:
-            with open(style_path, 'r') as f:
-                style_data = json.load(f)
-            logger.info(f"Style database loaded from {style_path}")
-            return style_data
-        except Exception as e:
-            logger.error(f"Error loading style database: {e}")
-            return {}
 
 if __name__ == "__main__":
     # Example usage

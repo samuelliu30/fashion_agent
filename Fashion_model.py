@@ -6,21 +6,20 @@ class FashionDataAPI:
         # Define the path to the CSV file
         csv_path = os.path.join('Data', 'store_zara.csv')
         # Load the CSV file into a pandas DataFrame
-        self.data = pd.read_csv(csv_path)
-        print("Data loaded successfully!")
-        print(self.data.head())
-        self.drop_columns()
-    
-    def drop_columns(self):
+        self.catalog_data = pd.read_csv(csv_path)
         columns_to_drop = ["brand", "sku", "currency", "scraped_at", "image_downloads"]
-        self.data.drop(columns=columns_to_drop, inplace=True)
-        print("Columns dropped successfully!")
-        
+        self.catalog_data.drop(columns=columns_to_drop, inplace=True)
+        print(self.catalog_data.head())
 
+        # Load the Common_Outfit_Styles.csv file into a pandas DataFrame
+        style_csv_path = os.path.join('Data', 'Common_Outfit_Styles.csv')
+        self.style_data = pd.read_csv(style_csv_path)
+        print(self.style_data.head())
+    
     def query_data(self, query):
         # Placeholder for query logic
         # You can implement specific query methods here
-        return self.data.query(query)
+        return self.catalog_data.query(query)
 
 # Instantiate the API
 fashion_api = FashionDataAPI()
