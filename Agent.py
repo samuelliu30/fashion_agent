@@ -6,7 +6,7 @@ import openai
 import json
 import requests
 from datetime import datetime
-
+from Fashion_model import fashion_api
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -29,10 +29,10 @@ class Agent:
         It uses the OpenAI API to generate a response.
         """
         try:
-            full_prompt = self.compose_prompt(messages)
+            #full_prompt = self.compose_prompt(messages)
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=full_prompt,
+                messages=messages,
                 temperature = 0.0, 
                 max_tokens=1000, 
             )
@@ -54,10 +54,56 @@ class Agent:
         ]
         return messages
     
+    # First prompt pass
+    # We tell the agent what the user wants and the agent will match the style with the categories
+    def first_prompt_pass(self, user_message: str) -> str:
+        """
+        This method takes a user message and composes a complete prompt with roles.
+        It returns a list of message dictionaries, each with a 'role' and 'content'.
+        """
+        delimiter = "####"
+        
+        # Get available categories from fashion API
+        try:
+            available_categories = fashion_api.get_categories()
+        except:
+            available_categories = ['t-shirts', 'jeans', 'sneakers', 'suit', 'dress shirt', 'tie', 'dress shoes', 'dresses', 'skirts', 'blouses', 'jackets', 'coats', 'sweaters', 'pants', 'shorts', 'activewear', 'accessories']
+        
+        system_message = f"""
+        You are a fashion stylist. \
+        The customer service query will be delimited with \
+        {delimiter} characters.
+        Classify the customer service query into a fashion style \
+        and describe the style with a brief description. \
+        Provide a list of clothing categories that complete the outfit. \
+        
+        For example, if the customer service query is "I want a casual outfit for a day out", \
+        the output should be:
+        Fashion style: Casual
+        Description: A relaxed and comfortable outfit perfect for everyday activities
+        Categories: ['t-shirts', 'jeans', 'sneakers']
+        
+        If the customer service query is "I want a formal outfit for a job interview", \
+        the output should be:
+        Fashion style: Formal
+        Description: A professional and polished outfit suitable for business settings
+        Categories: ['suit', 'dress shirt', 'tie', 'dress shoes']
+        
+        Available clothing categories: {available_categories}
+        
+        Please respond in a friendly, enthusiastic manner as a personal fashion consultant.
+        """
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ]
+        return self.get_completion_from_messages(messages)
 
 
 if __name__ == "__main__":
     # Example usage
     agent = Agent()
-    result = agent.get_completion_from_messages("Hello, how are you?")
+    #result = agent.get_completion_from_messages("Hello, how are you?")
+
+    result = agent.first_prompt_pass("I want a casual outfit for a dating night")
     print(result)
