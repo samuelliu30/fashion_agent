@@ -17,10 +17,11 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 class Agent:
-    def __init__(self, api_key):
-        self.api_key = api_key
-        openai.api_key = api_key
+    def __init__(self):
+        pass
     
     def get_completion_from_messages(self, messages: list) -> str:
         """
@@ -28,9 +29,10 @@ class Agent:
         It uses the OpenAI API to generate a response.
         """
         try:
+            full_prompt = self.compose_prompt(messages)
             response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=messages,
+                messages=full_prompt,
                 temperature = 0.0, 
                 max_tokens=1000, 
             )
@@ -56,6 +58,6 @@ class Agent:
 
 if __name__ == "__main__":
     # Example usage
-    agent = Agent(api_key="your-api-key-here")
-    result = agent.run("Hello, how are you?")
+    agent = Agent()
+    result = agent.get_completion_from_messages("Hello, how are you?")
     print(result)
