@@ -95,10 +95,35 @@ class Agent:
         """
         messages = [
             {"role": "system", "content": system_message},
-            {"role": "user", "content": user_message}
+            {"role": "user", "content": f"{delimiter}{user_message}{delimiter}"}
         ]
         return self.get_completion_from_messages(messages)
 
+    # The second prompt pass
+    # We take the categories and the description and we return a list of items that match the style
+    def second_prompt_pass(self, message: str) -> List[str]:
+        """
+        This method takes a list of categories and a description and returns a list of items that match the style
+        """
+        system_message = f"""
+        You are a fashion stylist working at Zara.
+        The catalog data is:
+        {fashion_api.get_catalog_data()}
+        You are given a list of categories and a description \
+        and you need to pick two items from each of the categories in our catalog to match the description. \
+        The items should be in a json format with the following format: \
+        Item: <item_name> 
+        Category: <category> 
+        Price: <price> 
+        Image: <image_url> \
+        The image_url is the first string in the image column of the of the item. \
+        """
+        delimiter = "####"
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": f"{delimiter}{message}{delimiter}"}
+        ]
+        return self.get_completion_from_messages(messages)
 
 if __name__ == "__main__":
     # Example usage

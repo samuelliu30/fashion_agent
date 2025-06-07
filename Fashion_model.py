@@ -14,6 +14,9 @@ class FashionDataAPI:
         style_csv_path = os.path.join('Data', 'Common_Outfit_Styles.csv')
         self.style_data = pd.read_csv(style_csv_path)
     
+    def get_catalog_data(self):
+        return self.catalog_data
+    
     def query_data(self, query):
         # Placeholder for query logic
         # You can implement specific query methods here
