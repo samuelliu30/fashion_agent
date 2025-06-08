@@ -34,9 +34,9 @@ MANIFEST
 static/
 images/
 
-# Data files (optional - uncomment if you want to exclude data files)
-# Data/*.csv
-# Data/*.pkl
+# Data files (large files that should be excluded)
+Data/*.csv
+Data/*.pkl
 
 # IDE
 .vscode/
