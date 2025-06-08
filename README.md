@@ -134,7 +134,6 @@ The system went through several iterations:
 - Added semantic search option for improved natural language understanding
 - Fixed various edge cases around budget parsing and product filtering
 
-The current version is stable and handles most fashion-related queries well. Context awareness was a major improvement - users can now have natural conversations without repeating their requirements.
 
 ## Data sources
 
@@ -142,11 +141,3 @@ The current version is stable and handles most fashion-related queries well. Con
 - **Styles**: 13 curated fashion styles with descriptions
 - **Images**: Automatically cached from Zara's CDN
 
-## Contributing
-
-1. Test both search methods with your queries
-2. The AI intent classification can be improved by adding more examples
-3. Product data can be expanded to include other retailers
-4. UI/UX improvements are always welcome
-
-Built with practicality in mind - this actually works for real fashion recommendations. 
