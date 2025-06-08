@@ -128,8 +128,6 @@ pip install -r requirements.txt
 
 ## Development notes
 
-The system went through several iterations:
-- Started with basic regex-based intent detection
 - Upgraded to AI-powered intent classification for better accuracy
 - Added semantic search option for improved natural language understanding
 - Fixed various edge cases around budget parsing and product filtering
