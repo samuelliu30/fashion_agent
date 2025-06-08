@@ -34,9 +34,10 @@ MANIFEST
 static/
 images/
 
-# Data files (large files that should be excluded)
-Data/*.csv
+# Data files (exclude large processed files but keep CSV)
 Data/*.pkl
+# Keep the CSV data file
+!Data/store_zara.csv
 
 # IDE
 .vscode/
