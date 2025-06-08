@@ -135,9 +135,3 @@ The system went through several iterations:
 - Fixed various edge cases around budget parsing and product filtering
 
 
-## Data sources
-
-- **Products**: Real Zara catalog with 3,065 items
-- **Styles**: 13 curated fashion styles with descriptions
-- **Images**: Automatically cached from Zara's CDN
-
