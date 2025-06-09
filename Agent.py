@@ -5,8 +5,6 @@ from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 import openai
 import json
-import requests
-from datetime import datetime
 import re
 import random
 
@@ -14,12 +12,8 @@ import random
 from config import SEARCH_METHOD
 if SEARCH_METHOD == 'semantic':
     from Fashion_model_semantic import fashion_api
-    logger = logging.getLogger(__name__)
-    logger.info("SEMANTIC SEARCH: Using advanced vector embeddings")
 else:
     from Fashion_model import fashion_api
-    logger = logging.getLogger(__name__)
-    logger.info("TF-IDF SEARCH: Using traditional text vectorization")
 
 # Set up logging
 logging.basicConfig(
@@ -27,6 +21,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Fashion Agent initialized with {SEARCH_METHOD.upper()} search")
 
 # Load OpenAI API key
 load_dotenv()
@@ -36,8 +31,8 @@ class Agent:
     """Main fashion AI agent that handles conversations and recommendations"""
     
     def __init__(self):
-        self.fashion_api = fashion_api  # Connect to product database
-        self.conversation_context = []   # Store conversation history
+        self.fashion_api = fashion_api
+        self.conversation_context = []
         logger.info("Fashion Agent initialized with RAG capabilities")
     
     def get_completion_from_messages(self, messages: list, temperature=0.0, max_tokens=1500) -> str:
@@ -49,232 +44,149 @@ class Agent:
                 temperature=temperature, 
                 max_tokens=max_tokens, 
             )
-            completion = response.choices[0].message['content']
-            logger.info(f"Completion generated successfully")
-            return completion
+            return response.choices[0].message['content']
         except Exception as e:
             logger.error(f"Error generating completion: {e}")
             return "I apologize, but I'm having trouble processing your request right now. Please try again."
     
     def classify_user_intent(self, user_message: str) -> Dict[str, Any]:
-        """
-        Use AI to understand what the user wants (shopping, advice, chat, etc.)
-        Replaces rigid keyword matching with intelligent understanding
-        """
+        """Use AI to understand what the user wants (shopping, advice, chat, etc.)"""
         intent_system_message = """
-        You are an intelligent intent classifier for a fashion AI assistant. Your job is to analyze user messages and determine their intent.
+        You are an intelligent intent classifier for a fashion AI assistant. 
 
         Classify user messages into these categories:
+        1. **fashion_request**: User wants specific product recommendations or shopping help
+        2. **fashion_advice**: User wants general fashion tips or styling advice  
+        3. **conversational**: Greetings, gratitude, personal questions, small talk
+        4. **technical_question**: User wants to know how the system works
+        5. **non_fashion_redirect**: Topics unrelated to fashion
+        6. **clarification_needed**: Intent is unclear and requires follow-up
 
-        1. **fashion_request**: User wants specific product recommendations, outfits, or shopping help
-           - Examples: "I need a dress for work", "show me casual shirts", "something for a date", "outfit under $100"
-
-        2. **fashion_advice**: User wants general fashion tips, styling advice, or fashion discussion
-           - Examples: "fashion tips for summer", "how to style a blazer", "what colors go well together"
-
-        3. **conversational**: Standard greetings, gratitude, personal questions, small talk
-           - Examples: "hello", "thank you", "how are you", "what's your name"
-
-        4. **technical_question**: User wants to know how the recommendation system works
-           - Examples: "how do you find products", "explain your process", "how does your AI work"
-
-        5. **non_fashion_redirect**: Topics completely unrelated to fashion that should be redirected
-           - Examples: "what's the weather", "who is the president", "tell me about cars"
-
-        6. **clarification_needed**: Intent is unclear and requires follow-up questions
-           - Examples: very short ambiguous messages, unclear requests
-
-        Consider the conversation history to understand context and clarifications.
-        
         Respond ONLY with a JSON object:
         {
             "intent": "category_name",
             "confidence": 0.95,
-            "reasoning": "Brief explanation of why this intent was chosen"
+            "reasoning": "Brief explanation"
         }
         """
 
-        # Build conversation context for better understanding
-        context_messages = []
+        # Build conversation context
+        context_messages = [{"role": "system", "content": intent_system_message}]
+        
         if len(self.conversation_context) > 1:
-            # Include last 5 messages for context (excluding current one)
             recent_context = self.conversation_context[-5:]
             context_str = "\n".join([f"Previous: {msg}" for msg in recent_context])
-            context_messages = [
-                {"role": "system", "content": intent_system_message},
-                {"role": "user", "content": f"Conversation history:\n{context_str}\n\nCurrent message to classify: '{user_message}'"}
-            ]
+            context_messages.append({
+                "role": "user", 
+                "content": f"Conversation history:\n{context_str}\n\nCurrent message: '{user_message}'"
+            })
         else:
-            context_messages = [
-                {"role": "system", "content": intent_system_message},
-                {"role": "user", "content": f"Classify this message: '{user_message}'"}
-            ]
-
-        messages = context_messages
+            context_messages.append({"role": "user", "content": f"Classify: '{user_message}'"})
 
         try:
-            intent_response = self.get_completion_from_messages(messages, temperature=0.1, max_tokens=200)
+            intent_response = self.get_completion_from_messages(context_messages, temperature=0.1, max_tokens=200)
             intent_data = json.loads(intent_response)
             
-            # Validate AI response
-            required_fields = ['intent', 'confidence', 'reasoning']
-            if not all(field in intent_data for field in required_fields):
-                raise ValueError("Invalid response format from intent classifier")
+            # Validate response
+            if not all(field in intent_data for field in ['intent', 'confidence', 'reasoning']):
+                raise ValueError("Invalid AI response format")
             
-            # Add compatibility flags for existing code
-            intent_data.update({
-                'message_length': len(user_message.split()),
-                'is_fashion_request': intent_data['intent'] == 'fashion_request',
-                'is_fashion_advice': intent_data['intent'] == 'fashion_advice',
-                'is_conversational': intent_data['intent'] == 'conversational',
-                'is_technical_question': intent_data['intent'] == 'technical_question',
-                'is_non_fashion': intent_data['intent'] == 'non_fashion_redirect',
-                'is_clarification_needed': intent_data['intent'] == 'clarification_needed'
-            })
-            
-            logger.info(f"AI Intent Classification: {intent_data['intent']} (confidence: {intent_data['confidence']}) - {intent_data['reasoning']}")
+            logger.info(f"Intent: {intent_data['intent']} (confidence: {intent_data['confidence']})")
             return intent_data
 
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
+        except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"Error in AI intent classification: {e}")
             
-            # Simple fallback if AI fails
+            # Simple fallback
             message_lower = user_message.lower().strip()
             
-            if any(word in message_lower for word in ['need', 'want', 'looking for', 'show me', 'find', 'outfit', 'dress', 'shirt', 'pants', 'clothes']):
+            if any(word in message_lower for word in ['need', 'want', 'looking for', 'show me', 'find', 'outfit']):
                 fallback_intent = 'fashion_request'
-            elif any(word in message_lower for word in ['tip', 'advice', 'how to', 'style', 'fashion', 'trend']):
+            elif any(word in message_lower for word in ['tip', 'advice', 'how to', 'style']):
                 fallback_intent = 'fashion_advice'
-            elif any(word in message_lower for word in ['hello', 'hi', 'thank', 'how are you', 'what', 'who']):
-                fallback_intent = 'conversational'
             else:
                 fallback_intent = 'conversational'
             
             return {
                 'intent': fallback_intent,
                 'confidence': 0.5,
-                'reasoning': 'Fallback classification due to AI error',
-                'message_length': len(user_message.split()),
-                'is_fashion_request': fallback_intent == 'fashion_request',
-                'is_fashion_advice': fallback_intent == 'fashion_advice',
-                'is_conversational': fallback_intent == 'conversational',
-                'is_technical_question': False,
-                'is_non_fashion': False,
-                'is_clarification_needed': False,
-                'fallback_used': True
+                'reasoning': 'Fallback classification due to AI error'
             }
     
     def handle_conversational_response(self, user_message: str, intent_info: Dict) -> Dict[str, Any]:
-        """
-        Handle friendly conversation (greetings, thanks, questions about the AI)
-        """
+        """Handle friendly conversation (greetings, thanks, general questions)"""
         message_lower = user_message.lower().strip()
         
-        # Different response types with friendly, engaging messages
+        # Simplified response categories
         responses = {
-            'name_identity': [
-                "I'm your personal fashion stylist! You can call me your Style Assistant. I'm here to help you discover amazing outfits that make you feel confident and fabulous! What style are you in the mood for today? ✨",
-                "Hi! I'm your dedicated fashion consultant - think of me as your style-savvy friend who knows all the latest trends! What kind of outfit are you dreaming of? 💫",
-                "I'm your AI fashion stylist! I love helping people discover their unique style and find outfits that make them shine. What's the occasion? 👗"
-            ],
-            'fashion_advice': [
-                "Here's a great fashion tip! 💡 Always remember the power of accessories - they can completely transform a basic outfit! A simple white t-shirt and jeans can become chic with the right statement necklace. ✨",
-                "Fashion tip time! 👗 One rule I swear by: invest in quality basics. A well-fitted pair of jeans, classic white button-down, and a little black dress will be your wardrobe's foundation! 💫",
-                "Here's my favorite styling tip! 🌟 Don't be afraid to mix textures and patterns, but keep one element consistent - like color palette. It creates visual interest while staying cohesive! 🎨",
-                "Fashion wisdom coming your way! ✨ The fit is everything! A $20 shirt that fits perfectly will always look better than an expensive one that's too big or small. 👌",
-                "Style tip alert! 💕 Create a capsule wardrobe with pieces that all work together. Choose 3-4 colors you love, then build around that. Everything mixes and matches! 🌈"
-            ],
-            'thank': [
-                "You're very welcome! I'm so happy I could help you find the perfect style! 😊",
-                "My pleasure! I hope you love the outfit recommendations. Feel free to ask if you need any styling tips!",
-                "You're welcome! I'm here whenever you need fashion advice. Have a wonderful time wearing your new style! ✨"
-            ],
             'greeting': [
                 "Hello! I'm your personal fashion stylist! Ready to create some amazing outfits together? Tell me what you're looking for! 👗",
                 "Hi there! I'm excited to help you discover your perfect style. What kind of look are you going for today?",
-                "Hey! Welcome to your personal styling session. What fashion adventure shall we embark on? 🌟"
             ],
-            'goodbye': [
-                "Goodbye! Remember, great style is just a conversation away. Come back anytime for more fashion inspiration! 💕",
-                "See you later! Keep rocking those amazing outfits, and don't hesitate to return for more styling magic!",
-                "Bye! May your wardrobe always be fabulous! Feel free to visit again for your next fashion journey! ✨"
+            'thank': [
+                "You're very welcome! I'm so happy I could help you find the perfect style! 😊",
+                "My pleasure! I hope you love the recommendations. Feel free to ask if you need more styling tips!",
             ],
-            'positive': [
-                "I'm so glad you're happy with the recommendations! That's what makes being a fashion stylist so rewarding! 😊",
-                "Yay! I love when we find the perfect match. You're going to look absolutely stunning! 💃",
-                "That makes me so happy! Fashion should make you feel confident and amazing! ✨"
+            'fashion_advice': [
+                "Here's a great fashion tip! 💡 Always remember the power of accessories - they can transform any basic outfit!",
+                "Fashion tip: invest in quality basics! Well-fitted jeans, a classic white shirt, and a little black dress are wardrobe foundations! ✨",
+            ],
+            'non_fashion': [
+                "That's interesting! However, I'm your fashion stylist, so I'm most helpful with style and outfits! 👗 What look are you going for?",
+                "I appreciate the question, but my expertise is fashion! Let's focus on making you look fabulous! What's your next style challenge? ✨",
             ],
             'general': [
-                "I'm doing wonderful, thank you for asking! I'm here and ready to help you create some fabulous outfits! What's your fashion mood today?",
-                "I'm great! I've been helping people discover their perfect style all day, and I'd love to help you too! What are you looking to wear?",
-                "I'm fantastic! There's nothing I love more than talking fashion and style. What can I help you find today? 👗"
-            ],
-            'non_fashion_redirect': [
-                "That's an interesting topic! However, I'm your dedicated fashion stylist, so I'm most helpful when we're talking about style and outfits! 👗 What kind of look are you going for?",
-                "I appreciate the question, but my expertise is all about fashion and style! I'd love to help you put together an amazing outfit instead. What occasion are you dressing for? ✨",
-                "While that's a great question, I'm your personal fashion consultant! Let's focus on making you look fabulous! 💫 What's your next fashion challenge?",
+                "I'm doing wonderful! I'm here and ready to help you create some fabulous outfits! What's your fashion mood today?",
+                "I'm fantastic! There's nothing I love more than talking fashion. What can I help you find today? 👗",
             ]
         }
         
-        # Determine response category based on message content
+        # Determine response category
         if intent_info.get('intent') == 'non_fashion_redirect':
-            category = 'non_fashion_redirect'
-        elif re.search(r'\b(what.*your name|who are you|what are you|introduce yourself)\b', message_lower):
-            category = 'name_identity'
-        elif intent_info.get('is_fashion_advice', False):
+            category = 'non_fashion'
+        elif intent_info.get('intent') == 'fashion_advice':
             category = 'fashion_advice'
         elif re.search(r'\b(thank|thx)\b', message_lower):
             category = 'thank'
         elif re.search(r'\b(hello|hi|hey)\b', message_lower):
             category = 'greeting'
-        elif re.search(r'\b(bye|goodbye)\b', message_lower):
-            category = 'goodbye'
-        elif re.search(r'\b(good|great|awesome|nice|perfect|love|amazing)\b', message_lower):
-            category = 'positive'
-        elif re.search(r'\b(how are you|how\'s it going)\b', message_lower):
-            category = 'general'
         else:
             category = 'general'
         
-        # Pick a random response from the appropriate category
-        response = random.choice(responses.get(category, responses['general']))
+        response = random.choice(responses[category])
         
         return {
             'status': 'success',
             'message_type': 'conversational',
             'response': response,
-            'category': category,
             'user_query': user_message
         }
 
     def handle_explanation_request(self, user_message: str) -> Dict[str, Any]:
-        """
-        Explain how the fashion recommendation system works
-        """
+        """Explain how the fashion recommendation system works"""
         explanation = """
         I'd love to explain how I work! ✨
 
-        🧠 **My Brain**: I use advanced AI technology called RAG (Retrieval-Augmented Generation) combined with TF-IDF vectorization to understand your style needs and find perfect matches.
+        🧠 **My Brain**: I use advanced AI (GPT-3.5) with RAG (Retrieval-Augmented Generation) to understand your style needs.
 
         🔍 **Smart Search**: When you tell me what you're looking for, I:
-        1. Analyze your request using AI to understand your style, occasion, and budget
+        1. Analyze your request using AI to understand style, occasion, and budget
         2. Search through thousands of Zara products using semantic similarity 
-        3. Match your needs with the perfect items based on descriptions, categories, and style attributes
+        3. Match your needs with perfect items based on descriptions and categories
 
         💡 **Two-Step Process**:
-        - **First**: I analyze your style preferences and create a comprehensive style profile
-        - **Second**: I use that analysis to find specific products that match your needs
+        - **First**: Analyze your style preferences and create a style profile
+        - **Second**: Use that analysis to find specific products that match
 
         🎯 **Smart Features**:
-        - Budget-aware recommendations (I respect your spending limits!)
-        - Occasion-appropriate suggestions (work, dates, casual, etc.)
-        - Style matching based on your personality and preferences
-        - Real product availability from Zara's current inventory
+        - Budget-aware recommendations
+        - Occasion-appropriate suggestions  
+        - Style matching based on your preferences
+        - Real product availability from Zara's inventory
 
-        🔗 **Clickable Shopping**: Every product I recommend is clickable - just click any item to shop directly on Zara's website!
+        🔗 **Clickable Shopping**: Every recommendation is clickable - shop directly on Zara's website!
 
-        The magic happens through machine learning that understands fashion language and matches it with real products. Think of me as your AI stylist with access to thousands of outfits! 🌟
-
+        Think of me as your AI stylist with access to thousands of outfits! 🌟
         What would you like to shop for today?
         """
         
@@ -286,14 +198,9 @@ class Agent:
         }
 
     def analyze_user_request(self, user_message: str) -> Dict[str, Any]:
-        """
-        Extract key information from user's fashion request (budget, style, occasion)
-        """
+        """Extract key information from user's fashion request (budget, style, occasion)"""
         try:
-            # Extract budget information
             budget_range = self.fashion_api.extract_budget_from_text(user_message)
-            
-            # Find matching styles using AI similarity
             matching_styles = self.fashion_api.find_matching_styles(user_message, max_results=3)
             
             return {
@@ -308,42 +215,34 @@ class Agent:
                 'budget': None,
                 'styles_found': 0,
                 'matching_styles': [],
-                'raw_message': user_message,
-                'error': str(e)
+                'raw_message': user_message
             }
 
     def first_prompt_pass(self, user_message: str) -> str:
-        """
-        First AI pass: Analyze user's style preferences and create detailed style profile
-        """
+        """First AI pass: Analyze user's style preferences and create detailed style profile"""
         delimiter = "####"
         
         # Build context-aware prompt
         context_info = ""
         if len(self.conversation_context) > 1:
             recent_context = self.conversation_context[-5:]
-            context_info = f"\n\nConversation History (for context):\n" + "\n".join([f"- {msg}" for msg in recent_context])
+            context_info = f"\n\nConversation History:\n" + "\n".join([f"- {msg}" for msg in recent_context])
         
         system_message = f"""
-        You are an expert fashion stylist analyzing a customer's style request. Your job is to create a comprehensive style analysis.
+        You are an expert fashion stylist analyzing a customer's style request.
 
         Analyze the user's request and provide:
         1. **Style Classification**: What style category best fits (casual, business, formal, trendy, etc.)
         2. **Occasion Analysis**: What occasion/setting is this for
         3. **Key Requirements**: Specific items mentioned or implied
-        4. **Style Personality**: What vibe/personality should the outfit convey
-        5. **Categories**: List specific clothing categories to search for (e.g., ["shirts", "pants", "dresses", "jackets", "shoes"])
-        6. **Gender Considerations**: If specified or clarified, ensure recommendations match the correct gender
+        4. **Style Personality**: What vibe should the outfit convey
+        5. **Categories**: List specific clothing categories to search for
 
-        Format your response as a detailed analysis that will help in product selection.
-        Be specific about the style direction and clothing categories needed.
-        
-        **IMPORTANT**: For outfit requests, always end with:
-        Categories: ["category1", "category2", "category3", ...]
+        **IMPORTANT**: Always end with:
+        Categories: ["category1", "category2", "category3"]
         
         Use categories like: shirts, tops, pants, jeans, dresses, skirts, jackets, blazers, shoes, sneakers, boots
-        For complete outfits, provide 3-5 diverse categories to build a cohesive look.
-        Use conversation history to understand clarifications or additional context.
+        For complete outfits, provide 3-5 diverse categories.
 
         Current Request: {delimiter}{user_message}{delimiter}{context_info}
         """
@@ -356,23 +255,20 @@ class Agent:
         return self.get_completion_from_messages(messages, temperature=0.2)
 
     def second_prompt_pass(self, style_analysis: str, user_query: str) -> str:
-        """
-        Second AI pass: Find specific products and create personalized recommendations
-        """
+        """Second AI pass: Find specific products and create personalized recommendations"""
         delimiter = "####"
         
         # Get user preferences
         analysis_result = self.analyze_user_request(user_query)
         budget_range = analysis_result.get('budget')
         
-        # Detect what types of products the user wants
+        # Detect product types and extract categories
         product_types = self._detect_product_types(user_query)
-        logger.info(f"User request analyzed: budget={budget_range}, product_types={product_types}")
-        
-        # Extract categories from style analysis
         categories = self._extract_categories_from_analysis(style_analysis)
         
-        # Search for products using extracted categories or fallback to text search
+        logger.info(f"Search parameters: budget={budget_range}, product_types={product_types}, categories={categories}")
+        
+        # Search for products
         try:
             if categories:
                 products_df = self.fashion_api.search_products_by_category(
@@ -381,10 +277,9 @@ class Agent:
                     budget_range=budget_range
                 )
             else:
-                # For outfit requests, search with outfit-building keywords
-                if 'outfit' in user_query.lower() or 'clothing' in product_types:
-                    # Build a complete outfit by searching multiple categories
-                    outfit_categories = ['shirts', 'tops', 'pants', 'jeans', 'dresses', 'jackets', 'blazers']
+                # Fallback to text search
+                if 'outfit' in user_query.lower():
+                    outfit_categories = ['shirts', 'tops', 'pants', 'jeans', 'dresses', 'jackets']
                     products_df = self.fashion_api.search_products_by_category(
                         outfit_categories, 
                         max_per_category=2, 
@@ -397,63 +292,62 @@ class Agent:
                         budget_range=budget_range
                     )
             
-            # Filter products by detected types
-            if products_df is not None and hasattr(products_df, 'empty') and not products_df.empty:
+            # Filter and format products
+            if products_df is not None and not products_df.empty:
                 products_df = self._filter_products_by_type(products_df, product_types)
                 products_data = self._format_products_for_response(products_df)
             else:
                 products_data = []
+                
         except Exception as e:
             logger.error(f"Error searching for products: {e}")
             products_data = []
         
-        # Handle case where no products are found
+        # Handle no products found
         if not products_data:
             return json.dumps({
-                "message": "I'm so sorry, but I couldn't find products matching your exact criteria in our current inventory. This might be because of specific budget constraints or very particular style requirements.",
-                "suggestions": "Would you like to try adjusting your budget slightly or exploring a similar style? I'd love to help you find something amazing!",
+                "message": "I couldn't find products matching your exact criteria in our current inventory. This might be due to budget constraints or specific style requirements.",
+                "suggestions": "Would you like to try adjusting your budget or exploring a similar style? I'd love to help you find something amazing!",
                 "products": []
             })
         
-        # Create AI prompt for generating personalized recommendations
+        # Build context for AI response
         product_types_str = ", ".join(product_types) if product_types else "clothing"
-        
-        # Add conversation context for better understanding
         context_info = ""
         if len(self.conversation_context) > 1:
             recent_context = self.conversation_context[-5:]
             context_info = f"\n\nConversation Context:\n" + "\n".join([f"- {msg}" for msg in recent_context])
         
         system_message = f"""
-        You are an enthusiastic fashion stylist presenting curated recommendations with warmth and personality.
+        You are an enthusiastic fashion stylist presenting curated recommendations.
         
         The user asked for: {product_types_str}
-        Based on the style analysis: {style_analysis}{context_info}
+        Based on analysis: {style_analysis}{context_info}
         
-        I have found {len(products_data)} products from our Zara inventory that match their request.
+        Found {len(products_data)} products from Zara inventory that match their request.
         
-        Format your response as a JSON object with this exact structure:
+        Format response as JSON:
         {{
-            "style_summary": "Brief, warm summary of the recommended style/products with personal enthusiasm",
-            "total_outfit_price": "Total price range for all recommended items",
+            "style_summary": "Brief, warm summary of recommended style with enthusiasm",
+            "total_outfit_price": "Total price range for all items",
             "products": [
                 {{
                     "name": "Product name",
-                    "category": "Product category (clothing/perfume/etc)", 
+                    "category": "Product category", 
                     "price": "Price with currency",
                     "description": "Brief style description",
                     "image_url": "Product image URL",
                     "url": "Product URL for Zara website",
-                    "why_chosen": "Personal, warm explanation of why this item was chosen and how it fits their request"
+                    "why_chosen": "Warm explanation of why this item was chosen"
                 }}
             ],
-            "styling_tips": "3-4 warm, personal tips for styling/using these items - be encouraging and enthusiastic"
+            "styling_tips": "3-4 personal tips for styling these items"
         }}
         
-        Products found in inventory:
+        Products found:
         {json.dumps(products_data, indent=2)}
         
-        Create an enthusiastic, warm, and personal response that explains why each item was chosen. If there are both clothing and perfume items, explain how they complement each other. Sound like a friend who's genuinely excited about helping them look and feel amazing!
+        Create an enthusiastic, warm response explaining why each item was chosen!
         """
         
         messages = [
@@ -465,9 +359,6 @@ class Agent:
     
     def _extract_categories_from_analysis(self, analysis_text: str) -> List[str]:
         """Extract clothing categories from AI style analysis"""
-        import re
-        
-        # Look for Categories: [list] pattern in the analysis
         pattern = r"Categories:\s*\[(.*?)\]"
         match = re.search(pattern, analysis_text)
         
@@ -484,16 +375,14 @@ class Agent:
         detected_types = []
         
         # Perfume/Fragrance indicators
-        perfume_keywords = ['perfume', 'fragrance', 'scent', 'cologne', 'eau de parfum', 'edp', 'eau de toilette', 'edt']
-        if any(keyword in query_lower for keyword in perfume_keywords):
+        if any(keyword in query_lower for keyword in ['perfume', 'fragrance', 'scent', 'cologne']):
             detected_types.append('perfume')
         
-        # Clothing indicators
-        clothing_keywords = ['outfit', 'shirt', 'pants', 'dress', 'jacket', 'top', 'bottom', 'clothes', 'clothing', 'wear', 'attire']
-        if any(keyword in query_lower for keyword in clothing_keywords):
+        # Clothing indicators (default)
+        if any(keyword in query_lower for keyword in ['outfit', 'shirt', 'pants', 'dress', 'clothes']):
             detected_types.append('clothing')
         
-        # If no specific type detected, assume clothing (most common request)
+        # Default to clothing if nothing detected
         if not detected_types:
             detected_types.append('clothing')
         
@@ -510,8 +399,8 @@ class Agent:
             if requested_type == 'perfume':
                 # Filter for perfumes/fragrances
                 perfume_mask = (
-                    products_df['name'].str.contains(r'EDP|EAU DE|PARFUM|PERFUME|FRAGRANCE|ML|FL\. OZ', case=False, na=False, regex=True) |
-                    products_df['description'].str.contains(r'perfume|fragrance|eau de|scent|notes of', case=False, na=False, regex=True)
+                    products_df['name'].str.contains(r'EDP|EAU DE|PARFUM|PERFUME|FRAGRANCE', case=False, na=False, regex=True) |
+                    products_df['description'].str.contains(r'perfume|fragrance|eau de|scent', case=False, na=False, regex=True)
                 )
                 perfume_products = products_df[perfume_mask]
                 if not perfume_products.empty:
@@ -520,8 +409,8 @@ class Agent:
             elif requested_type == 'clothing':
                 # Filter for clothing items (exclude perfumes)
                 clothing_mask = ~(
-                    products_df['name'].str.contains(r'EDP|EAU DE|PARFUM|PERFUME|FRAGRANCE|ML|FL\. OZ', case=False, na=False, regex=True) |
-                    products_df['description'].str.contains(r'perfume|fragrance|eau de|scent|notes of', case=False, na=False, regex=True)
+                    products_df['name'].str.contains(r'EDP|EAU DE|PARFUM|PERFUME|FRAGRANCE', case=False, na=False, regex=True) |
+                    products_df['description'].str.contains(r'perfume|fragrance|eau de|scent', case=False, na=False, regex=True)
                 )
                 clothing_products = products_df[clothing_mask]
                 if not clothing_products.empty:
@@ -532,7 +421,7 @@ class Agent:
             import pandas as pd
             return pd.concat(filtered_products, ignore_index=True)
         else:
-            return products_df.head(0)  # Return empty dataframe
+            return products_df.head(0)
     
     def _format_products_for_response(self, products_df) -> List[Dict]:
         """Convert product data to format needed by AI recommendation system"""
@@ -545,7 +434,7 @@ class Agent:
             if pd.isna(description) or description is None:
                 description = ''
             else:
-                description = str(description)  # Ensure it's a string
+                description = str(description)
             
             # Truncate description if too long
             if len(description) > 200:
@@ -557,7 +446,7 @@ class Agent:
                 "price": f"${float(product.get('price', 0)):.2f}",
                 "description": description,
                 "image_url": str(product.get('primary_image', '')),
-                "url": str(product.get('url', '')),  # Include URL for clickable links
+                "url": str(product.get('url', '')),
                 "section": str(product.get('section', '')),
                 "similarity_score": float(product.get('similarity_score', 0))
             }
@@ -566,16 +455,14 @@ class Agent:
         return products_list
     
     def process_user_request(self, user_message: str) -> Dict[str, Any]:
-        """
-        Main processing pipeline: understand intent, analyze request, generate recommendations
-        """
+        """Main processing pipeline: understand intent, analyze request, generate recommendations"""
         try:
             # Store conversation for context
             self.conversation_context.append(user_message)
             
             # Use AI to understand what user wants
             intent_info = self.classify_user_intent(user_message)
-            logger.info(f"User intent classified as: {intent_info['intent']} (confidence: {intent_info.get('confidence', 0)})")
+            logger.info(f"User intent: {intent_info['intent']} (confidence: {intent_info.get('confidence', 0)})")
             
             # Route to appropriate handler based on intent
             if intent_info['intent'] == 'conversational':
@@ -595,10 +482,7 @@ class Agent:
             
             elif intent_info['intent'] == 'fashion_request':
                 # Two-step AI process for fashion recommendations
-                # Step 1: Analyze style preferences
                 style_analysis = self.first_prompt_pass(user_message)
-                
-                # Step 2: Find products and create recommendations
                 product_recommendations = self.second_prompt_pass(style_analysis, user_message)
                 
                 # Try to parse as structured JSON response
@@ -629,25 +513,19 @@ class Agent:
             logger.error(f"Error in process_user_request: {e}")
             return {
                 'status': 'error',
-                'message': 'Oh no! I encountered a little hiccup while processing your request. Could you try rephrasing that for me? I promise I\'ll do my best to help! 😊',
+                'message': 'Oh no! I encountered a little hiccup. Could you try rephrasing that for me? 😊',
                 'error': str(e)
             }
 
     def handle_clarification_request(self, user_message: str, intent_info: Dict) -> Dict[str, Any]:
-        """
-        Handle cases where user intent is unclear and we need to ask follow-up questions
-        """
+        """Handle cases where user intent is unclear"""
         clarification_questions = [
-            "I'd love to help you with that! Could you tell me a bit more about what you're looking for? Are you shopping for a specific item or occasion? 🌟",
-            "I want to make sure I give you the perfect recommendations! Could you share more details about what kind of style or items you have in mind? ✨",
-            "Let me help you find something amazing! What specifically are you looking for - maybe an outfit for a particular occasion or a certain type of clothing? 💫"
+            "I'd love to help you! Could you tell me more about what you're looking for? Are you shopping for a specific item or occasion? 🌟",
+            "I want to give you perfect recommendations! Could you share more details about the style or items you have in mind? ✨",
+            "Let me help you find something amazing! What specifically are you looking for - maybe an outfit for a particular occasion? 💫"
         ]
         
-        # Use AI-suggested clarification if available, otherwise use default
-        if intent_info.get('potential_clarification'):
-            response = intent_info['potential_clarification']
-        else:
-            response = random.choice(clarification_questions)
+        response = random.choice(clarification_questions)
         
         return {
             'status': 'success',

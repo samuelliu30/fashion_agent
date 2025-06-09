@@ -21,22 +21,21 @@ class FashionDataAPI:
         style_csv_path = os.path.join('Data', 'Common_Outfit_Styles.csv')
         
         # Load Zara product catalog
-        logger.info("SEMANTIC: Loading fashion catalog data...")
+        logger.info("Loading fashion catalog data...")
         self.catalog_data = pd.read_csv(csv_path)
         self._prepare_catalog_data()
         
         # Load outfit style definitions
-        logger.info("SEMANTIC: Loading style data...")
         self.style_data = pd.read_csv(style_csv_path)
         
-        # Set up SEMANTIC AI search capabilities
+        # Set up semantic search capabilities
         self._initialize_semantic_search()
         
-        logger.info(f"SEMANTIC MODEL: Loaded {len(self.catalog_data)} products and {len(self.style_data)} styles")
+        logger.info(f"Loaded {len(self.catalog_data)} products and {len(self.style_data)} styles")
     
     def _prepare_catalog_data(self):
         """Clean and prepare product data for semantic search"""
-        # Remove unnecessary columns (keep 'url' for clickable links)
+        # Remove unnecessary columns
         columns_to_drop = ["brand", "sku", "currency", "scraped_at", "image_downloads", "error"]
         self.catalog_data.drop(columns=[col for col in columns_to_drop if col in self.catalog_data.columns], inplace=True)
         
@@ -57,7 +56,7 @@ class FashionDataAPI:
         # Remove products without essential info
         self.catalog_data = self.catalog_data.dropna(subset=['name', 'price'])
         
-        logger.info(f"SEMANTIC: Catalog data prepared: {len(self.catalog_data)} valid products")
+        logger.info(f"Catalog data prepared: {len(self.catalog_data)} valid products")
     
     def _extract_first_image(self, images_str):
         """Get the first image URL from product images"""
@@ -70,10 +69,10 @@ class FashionDataAPI:
             return None
     
     def _initialize_semantic_search(self):
-        """Set up SEMANTIC AI search using sentence transformers"""
-        logger.info("SEMANTIC: Initializing semantic search with sentence transformers...")
+        """Set up semantic search using sentence transformers"""
+        logger.info("Initializing semantic search...")
         
-        # Load pre-trained semantic model (optimized for fashion/shopping)
+        # Load pre-trained semantic model
         self.semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
         
         # Check if we have cached embeddings
@@ -81,13 +80,13 @@ class FashionDataAPI:
         style_embeddings_path = 'Data/style_embeddings.pkl'
         
         if os.path.exists(product_embeddings_path) and os.path.exists(style_embeddings_path):
-            logger.info("SEMANTIC: Loading cached embeddings...")
+            logger.info("Loading cached embeddings...")
             with open(product_embeddings_path, 'rb') as f:
                 self.product_embeddings = pickle.load(f)
             with open(style_embeddings_path, 'rb') as f:
                 self.style_embeddings = pickle.load(f)
         else:
-            logger.info("SEMANTIC: Creating new embeddings (this may take a minute)...")
+            logger.info("Creating new embeddings...")
             
             # Create semantic embeddings for all products
             product_texts = self.catalog_data['search_text'].fillna('').tolist()
@@ -110,27 +109,27 @@ class FashionDataAPI:
                 convert_to_numpy=True
             )
             
-            # Cache embeddings for faster startup next time
+            # Cache embeddings for faster startup
             os.makedirs('Data', exist_ok=True)
             with open(product_embeddings_path, 'wb') as f:
                 pickle.dump(self.product_embeddings, f)
             with open(style_embeddings_path, 'wb') as f:
                 pickle.dump(self.style_embeddings, f)
         
-        logger.info("SEMANTIC: Search initialized successfully")
+        logger.info("Semantic search initialized")
     
     def search_products_by_text(self, query_text, max_results=10, budget_range=None):
-        """Find products using SEMANTIC AI similarity search"""
+        """Find products using semantic similarity search"""
         # Convert user query to semantic vector
         query_embedding = self.semantic_model.encode([query_text.lower()])
         
         # Calculate semantic similarity scores
         similarities = cosine_similarity(query_embedding, self.product_embeddings).flatten()
         
-        # Get best semantic matches
+        # Get best matches
         top_indices = similarities.argsort()[::-1][:max_results * 3]
         
-        # Build results with semantic similarity scores
+        # Build results with similarity scores
         results = self.catalog_data.iloc[top_indices].copy()
         results['similarity_score'] = similarities[top_indices]
         
@@ -142,13 +141,13 @@ class FashionDataAPI:
                 (results['price'] <= max_price)
             ]
         
-        # Semantic search typically has higher quality matches
+        # Filter for quality matches
         results = results[results['similarity_score'] > 0.1]
         
         return results.head(max_results)
     
     def search_products_by_category(self, categories, max_per_category=2, budget_range=None):
-        """Find products by categories using SEMANTIC understanding"""
+        """Find products by categories using semantic understanding"""
         all_results = []
         
         for category in categories:
@@ -162,7 +161,6 @@ class FashionDataAPI:
                 budget_range=budget_range
             )
             
-            # Semantic models understand context better
             filtered_results = category_results.head(max_per_category)
             all_results.append(filtered_results)
         
@@ -173,7 +171,7 @@ class FashionDataAPI:
             return pd.DataFrame()
     
     def find_matching_styles(self, user_query, max_results=3):
-        """Find outfit styles using SEMANTIC matching"""
+        """Find outfit styles using semantic matching"""
         # Convert query to semantic vector
         query_embedding = self.semantic_model.encode([user_query.lower()])
         
@@ -186,13 +184,10 @@ class FashionDataAPI:
         results = self.style_data.iloc[top_indices].copy()
         results['similarity_score'] = similarities[top_indices]
         
-        # Semantic models provide more nuanced matches
         return results[results['similarity_score'] > 0.2]
     
     def classify_product_intent(self, query_text):
-        """
-        SEMANTIC CLASSIFICATION: Automatically detect what type of products user wants
-        """
+        """Automatically detect what type of products user wants"""
         query_embedding = self.semantic_model.encode([query_text.lower()])
         
         # Define product type embeddings
@@ -203,14 +198,14 @@ class FashionDataAPI:
             'shoes': 'shoes sneakers boots heels sandals footwear'
         }
         
-        type_embeddings = {}
         max_similarity = 0
         best_type = 'clothing'  # default
+        type_scores = {}
         
         for ptype, description in product_types.items():
             type_embedding = self.semantic_model.encode([description])
             similarity = cosine_similarity(query_embedding, type_embedding)[0][0]
-            type_embeddings[ptype] = similarity
+            type_scores[ptype] = similarity
             
             if similarity > max_similarity:
                 max_similarity = similarity
@@ -219,18 +214,15 @@ class FashionDataAPI:
         return {
             'product_type': best_type,
             'confidence': max_similarity,
-            'all_scores': type_embeddings
+            'all_scores': type_scores
         }
     
     def semantic_outfit_recommendation(self, query_text, max_results=6):
-        """
-        ADVANCED: Create complete outfit recommendations using semantic understanding
-        """
+        """Create complete outfit recommendations using semantic understanding"""
         # Classify the intent first
         intent = self.classify_product_intent(query_text)
         
         if intent['product_type'] == 'perfume':
-            # Just search for perfumes
             return self.search_products_by_text(f"{query_text} perfume fragrance", max_results)
         
         # For clothing, create a complete outfit
@@ -245,27 +237,31 @@ class FashionDataAPI:
         return diverse_results
     
     def _ensure_outfit_diversity(self, results, max_items):
-        """
-        Ensure outfit has diverse item types (not all shirts, etc.)
-        """
+        """Ensure outfit has diverse item types"""
         if results.empty:
             return results
         
-        # Categorize items semantically
+        # Simple category classification
+        categories = ['top', 'bottom', 'dress', 'jacket', 'accessories']
+        category_keywords = {
+            'top': ['shirt', 'blouse', 'top', 'sweater', 't-shirt'],
+            'bottom': ['pants', 'jeans', 'skirt', 'shorts', 'trousers'],
+            'dress': ['dress', 'gown'],
+            'jacket': ['jacket', 'blazer', 'coat', 'cardigan'],
+            'accessories': ['bag', 'belt', 'scarf', 'hat']
+        }
+        
+        # Categorize items
         item_categories = []
         for _, item in results.iterrows():
-            item_embedding = self.semantic_model.encode([item['search_text']])
+            item_text = item['search_text'].lower()
+            best_category = 'top'  # default
             
-            # Check similarity to category types
-            category_scores = {}
-            categories = ['top shirt blouse', 'bottom pants jeans skirt', 'dress', 'jacket outerwear', 'accessories']
+            for category, keywords in category_keywords.items():
+                if any(keyword in item_text for keyword in keywords):
+                    best_category = category
+                    break
             
-            for cat in categories:
-                cat_embedding = self.semantic_model.encode([cat])
-                score = cosine_similarity(item_embedding, cat_embedding)[0][0]
-                category_scores[cat.split()[0]] = score
-            
-            best_category = max(category_scores, key=category_scores.get)
             item_categories.append(best_category)
         
         results['item_category'] = item_categories

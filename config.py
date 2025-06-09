@@ -5,7 +5,7 @@
 # 'tfidf'    - Traditional TF-IDF vectorization (faster, good for exact matches)
 # 'semantic' - Modern semantic embeddings (smarter, better context understanding)
 
-SEARCH_METHOD = 'tfidf'  # Change this to 'semantic' to use the advanced version
+SEARCH_METHOD = 'semantic'  # Using advanced semantic embeddings for better context understanding
 
 # Other configuration options
 DEFAULT_MAX_RESULTS = 6
