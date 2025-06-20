@@ -21,9 +21,9 @@
         }
 
         .chat-container {
-            width: 90%;
-            max-width: 800px;
-            height: 80vh;
+            width: 95%;
+            max-width: 1200px;
+            height: 85vh;
             background: white;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
@@ -58,7 +58,7 @@
         }
 
         .message {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             display: flex;
             animation: fadeIn 0.3s ease-in;
         }
@@ -94,6 +94,164 @@
             background: white;
             color: #333;
             border: 1px solid #e0e0e0;
+        }
+
+        /* Outfit recommendations styling */
+        .outfit-response {
+            max-width: 90%;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .style-summary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .style-summary h3 {
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .outfit-metrics {
+            display: flex;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .product-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .product-link {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .product-link:hover {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .product-info {
+            padding: 15px;
+        }
+
+        .product-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .product-category {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .product-price {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff6b6b;
+            margin-bottom: 8px;
+        }
+
+        .product-description {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .why-chosen {
+            font-size: 11px;
+            color: #667eea;
+            font-style: italic;
+            background: #f8f9ff;
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        .styling-tips {
+            background: #fff9e6;
+            border-left: 4px solid #ffcc02;
+            padding: 15px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 15px;
+        }
+
+        .styling-tips h4 {
+            color: #b8860b;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .styling-tips p {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #666;
         }
 
         .chat-input-container {
@@ -190,6 +348,24 @@
             margin-top: 10px;
         }
 
+        .loading-placeholder {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 2s infinite;
+            border-radius: 4px;
+            height: 20px;
+            margin: 5px 0;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+
         /* Scrollbar styling */
         .chat-messages::-webkit-scrollbar {
             width: 6px;
@@ -208,25 +384,49 @@
         .chat-messages::-webkit-scrollbar-thumb:hover {
             background: #a1a1a1;
         }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .chat-container {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .outfit-metrics {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .outfit-response {
+                max-width: 95%;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
             <h1>Fashion Agent</h1>
-            <p>Your personal style consultant</p>
+                            <p>Your personal style consultant</p>
         </div>
         
         <div class="chat-messages" id="chatMessages">
             <div class="message bot">
                 <div class="message-bubble">
-                    Hello! I'm your fashion agent. Tell me what kind of outfit you're looking for, and I'll help you create the perfect style!
+                    Hello! I'm your fashion agent powered by advanced AI and style analysis. Tell me what kind of outfit you're looking for (including your budget if you have one), and I'll create the perfect style recommendation for you! 
+                    <br><br>
+                    Try something like: "I need a casual chic outfit for a date night under $200" or "Professional business attire for important meetings"
                 </div>
             </div>
         </div>
         
         <div class="chat-input-container">
-            <input type="text" id="chatInput" class="chat-input" placeholder="Describe the outfit you want..." autocomplete="off">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Describe your style needs and budget..." autocomplete="off">
             <button id="sendButton" class="send-button">Send</button>
         </div>
     </div>
@@ -242,9 +442,126 @@
             
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            bubbleDiv.textContent = content;
+            bubbleDiv.innerHTML = content;
             
             messageDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addOutfitRecommendation(data) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            
+            const outfitDiv = document.createElement('div');
+            outfitDiv.className = 'outfit-response';
+            
+            // Style summary
+            if (data.recommendations.style_summary) {
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'style-summary';
+                summaryDiv.innerHTML = `
+                    <h3>✨ Your Perfect Style</h3>
+                    <p>${data.recommendations.style_summary}</p>
+                `;
+                outfitDiv.appendChild(summaryDiv);
+            }
+
+            // Outfit metrics
+            if (data.recommendations.outfit_metrics) {
+                const metricsDiv = document.createElement('div');
+                metricsDiv.className = 'outfit-metrics';
+                const metrics = data.recommendations.outfit_metrics;
+                metricsDiv.innerHTML = `
+                    <div class="metric">
+                        <div class="metric-value">${metrics.total_price}</div>
+                        <div>Total Price</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${metrics.item_count}</div>
+                        <div>Items</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${metrics.images_loaded}</div>
+                        <div>Images</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">${metrics.average_price}</div>
+                        <div>Avg Price</div>
+                    </div>
+                `;
+                outfitDiv.appendChild(metricsDiv);
+            }
+
+            // Products grid
+            if (data.recommendations.products && data.recommendations.products.length > 0) {
+                const productsGrid = document.createElement('div');
+                productsGrid.className = 'products-grid';
+                
+                data.recommendations.products.forEach(product => {
+                    // Create clickable product card
+                    const productCard = document.createElement('div');
+                    productCard.className = 'product-card';
+                    
+                    // Make the card clickable if URL is available
+                    if (product.url) {
+                        productCard.style.cursor = 'pointer';
+                        productCard.addEventListener('click', () => {
+                            window.open(product.url, '_blank');
+                        });
+                        productCard.title = 'Click to view on Zara website';
+                    }
+                    
+                    // Image section
+                    const imageDiv = document.createElement('div');
+                    imageDiv.className = 'product-image';
+                    
+                    if (product.cached_image_path && product.image_available) {
+                        const img = document.createElement('img');
+                        img.src = product.cached_image_path;
+                        img.alt = product.name;
+                        img.onerror = function() {
+                            this.parentElement.innerHTML = '📷 Image not available';
+                        };
+                        imageDiv.appendChild(img);
+                    } else {
+                        imageDiv.innerHTML = '📷 Loading image...';
+                    }
+                    
+                    // Product info
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'product-info';
+                    infoDiv.innerHTML = `
+                        <div class="product-category">${product.category}</div>
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-price">${product.price}</div>
+                        <div class="product-description">${product.description || ''}</div>
+                        ${product.why_chosen ? `<div class="why-chosen">💡 ${product.why_chosen}</div>` : ''}
+                        ${product.url ? '<div class="click-hint" style="font-size: 11px; color: #667eea; margin-top: 8px; text-align: center;">🔗 Click to view on Zara</div>' : ''}
+                    `;
+                    
+                    productCard.appendChild(imageDiv);
+                    productCard.appendChild(infoDiv);
+                    productsGrid.appendChild(productCard);
+                });
+                
+                outfitDiv.appendChild(productsGrid);
+            }
+
+            // Styling tips
+            if (data.recommendations.styling_tips) {
+                const tipsDiv = document.createElement('div');
+                tipsDiv.className = 'styling-tips';
+                tipsDiv.innerHTML = `
+                    <h4>👗 Styling Tips</h4>
+                    <p>${data.recommendations.styling_tips}</p>
+                `;
+                outfitDiv.appendChild(tipsDiv);
+            }
+            
+            messageDiv.appendChild(outfitDiv);
             chatMessages.appendChild(messageDiv);
             
             // Scroll to bottom
@@ -259,9 +576,9 @@
             const typingBubble = document.createElement('div');
             typingBubble.className = 'typing-indicator';
             typingBubble.style.display = 'flex';
-            
-            const typingText = document.createElement('span');
-            typingText.textContent = 'Fashion agent is typing';
+            typingBubble.style.justifyContent = 'center';
+            typingBubble.style.alignItems = 'center';
+            typingBubble.style.padding = '15px';
             
             const dotsDiv = document.createElement('div');
             dotsDiv.className = 'typing-dots';
@@ -272,7 +589,6 @@
                 dotsDiv.appendChild(dot);
             }
             
-            typingBubble.appendChild(typingText);
             typingBubble.appendChild(dotsDiv);
             typingDiv.appendChild(typingBubble);
             chatMessages.appendChild(typingDiv);
@@ -312,10 +628,27 @@
                 
                 hideTypingIndicator();
                 
+                // Handle different types of responses
                 if (data.status === 'success') {
-                    addMessage(data.response);
+                    if (data.message_type === 'structured_outfit') {
+                        // Display structured outfit recommendation
+                        addOutfitRecommendation(data);
+                    } else if (data.message_type === 'conversational') {
+                        // Display conversational response
+                        addMessage(data.response);
+                    } else if (data.message_type === 'explanation') {
+                        // Display explanation with special formatting
+                        addMessage(data.response);
+                    } else {
+                        // Generic success response
+                        addMessage(data.response || data.style_analysis || 'I received your request!');
+                    }
+                } else if (data.status === 'partial_success') {
+                    // Display text response
+                    addMessage(data.response || data.style_analysis || 'I received your request but had trouble formatting the response.');
                 } else {
-                    addMessage('Sorry, I encountered an error. Please try again.');
+                    // Error handling
+                    addMessage(data.message || 'Sorry, I encountered an error. Please try again.');
                 }
             } catch (error) {
                 hideTypingIndicator();
@@ -337,6 +670,22 @@
 
         // Focus on input when page loads
         chatInput.focus();
+
+        // Example suggestions
+        const suggestions = [
+            "Casual chic outfit for a coffee date under $150",
+            "Professional business attire for important presentations",
+            "Weekend casual wear with a budget of $100",
+            "Elegant evening outfit for a special dinner",
+            "Smart casual look for a job interview under $200"
+        ];
+
+        // Add click listeners for example messages
+        chatInput.addEventListener('focus', function() {
+            if (!this.value) {
+                this.placeholder = suggestions[Math.floor(Math.random() * suggestions.length)];
+            }
+        });
     </script>
 </body>
 </html> 
